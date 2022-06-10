@@ -38,7 +38,19 @@ function M.open_terminal()
   vim.cmd("terminal")
 end
 
-function M.build(path, cmd)
+function M.send_command_to_current_term(command, autoscroll, name, enter)
+    -- local opts = {autoscroll = true, name = "catkin_make", enter = true}
+    local append_enter = enter == nil and "\\n" or ""
+    local send_to_term = ':call jobsend(b:terminal_job_id, "' .. command .. append_enter .. '")'
+    name = name or command
+    vim.cmd(":file " .. name)
+    vim.cmd(send_to_term)
+    if autoscroll ~= false then
+        vim.cmd(":normal! G")
+    end
+end
+
+function M.build(ws_path, cmd)
   local current_bufnr = vim.fn.bufnr()
   local bufnr = vim.fn.bufnr("catkin build")
     if bufnr ~= -1 then
@@ -46,6 +58,9 @@ function M.build(path, cmd)
     else
       M.open_terminal()
     end
+    M.send_command_to_current_term("cd " .. ws_path, false)
+    M.send_command_to_current_term(cmd)
+    M.go_to_buffer_id(current_bufnr)
 end
 
 function M.global_db(ws_path)
@@ -61,31 +76,35 @@ function M.global_db(ws_path)
         print('not building the database')
         return
       else
-        local build_cmd = 'cd \'' .. ws_path .. '\' && catkin_build'
-        M.build(ws_path, build_cmd)
+        -- local build_cmd = 'cd \'' .. ws_path .. '\' && catkin_build'
+        local build_arg = ''
+        M.build(ws_path, build_arg)
         return "--compile-commands-dir=".. ws_build_dir_path
       end
     end)
+  else
+    return ws_build_dir_path
   end
 
 end
 
 function M.local_db(ws_path,path)
-  local name = M.get_current_package_name(path)
+  local package = M.get_current_package_name(path)
+  local package_build_dir = ws_path .. '/build/' .. package
 
-  local build_dir_loc = ws_path .. '/build/' .. name
-  if not M.file_exists(build_dir_loc .. '/compile_commands.json') then
+  if not M.file_exists(package_build_dir .. '/compile_commands.json') then
     vim.ui.input({prompt='no database. want to build the local? [Y/n] '},
     function (input)
       if input == 'n' then
         print('not building the database')
         return
       else
-        -- local build_cmd = 'cd \'' .. ws_dir_path .. '\' && catkin build -DCMAKE_COMPILE_COMMANDS=ON \'' .. name .. '\''
-        -- build(ws_dir_path, build_cmd)
-        return "--compile-commands-dir=".. build_dir_loc
+        M.build(ws_path, package)
+        return "--compile-commands-dir=".. package_build_dir
       end
     end)
+  else
+    return package_build_dir
   end
 end
 
