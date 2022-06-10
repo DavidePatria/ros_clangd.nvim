@@ -2,7 +2,8 @@ local utils = require "ros_clangd.utils"
 local M = {}
 
 CONFIG = {
-  ws_json = true
+  ws_json = true,
+  compile_command = 'catkin build',
 }
 
 function M.setup(config)
